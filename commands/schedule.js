@@ -1,5 +1,6 @@
-const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ComponentType, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ComponentType, TextInputBuilder, TextInputStyle, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const scheduleDB = require('../models/schedule.js');
+const raidMemberDB = require('../models/raidmember.js');
 const moment = require("moment");
 require('moment/locale/ko');
 
@@ -39,10 +40,18 @@ module.exports = {
       
       )
       .setDefaultMemberPermissions(PermissionFlagsBits.ViewChannel)
-    // .addSubcommand((subcommand) => 
-    //   subcommand.setName("삭제")
-    //   .setDescription("스케쥴을 삭제합니다.")
-    // )
+    .addSubcommand((subcommand) => 
+      subcommand.setName("조회")
+      .setDescription("스케쥴을 조회합니다.")
+    )
+    .addSubcommand((subcommand) => 
+    subcommand.setName("참가")
+    .setDescription("레이드에 참여 신청 합니다.")
+    )
+    .addSubcommand((subcommand) => 
+      subcommand.setName("신청조회")
+      .setDescription("생성된 레이드의 참가자 신청내역을 조회합니다.")
+    )
     ,
   run: async ({ interaction }) => {
     const subcommand = interaction.options.getSubcommand();
@@ -56,11 +65,13 @@ module.exports = {
         var momentDate = moment(date, 'YYYY-MM-DD HH:mm', true);
         console.log(momentDate.isValid());
         console.log(`No interactions were collected. ${date}, ${raid}, ${mode}, ${exp}`);
+        console.log(interaction.user);
 
         if(momentDate.isValid()){
           await interaction.deferReply();
           const newSchedule = new scheduleDB({
-            creater: interaction.member.nickname,
+            creater: interaction.user.id,
+            creater_name: interaction.member.nickname ?? interaction.user.globalName,
             type: exp,
             start_date: date,
             raid_object: raid,
@@ -70,14 +81,15 @@ module.exports = {
   
           // {ephemeral: true}
 
-          interaction.editReply({content: `${interaction.member.nickname}님이 레이드 스케쥴을 생성 하였습니다\n${momentDate.format('YYYY년MM월DD일 HH시mm분(dddd)')}/${raid}/${mode}/${exp}`, components: []}); 
+          await interaction.editReply({content: `${interaction.member.nickname ?? interaction.user.globalName}님이 레이드 스케쥴을 생성 하였습니다\n${momentDate.format('YYYY년MM월DD일 HH시mm분(dddd)')}/${raid}/${mode}/${exp}`, components: []}); 
         }else{
-          interaction.reply({content: `날짜 입력 오류`, components: [], ephemeral: true}); 
+          interaction.editReply({content: `날짜 입력 오류`, components: [], ephemeral: true}); 
         }
         
       }
       catch (exception) {
-        interaction.reply({content: `날짜 입력 오류`, components: [], ephemeral: true}); 
+        console.log(exception);
+        interaction.editReply({content: `날짜 입력 오류`, components: [], ephemeral: true}); 
       }
       
 
@@ -88,6 +100,186 @@ module.exports = {
       // console.log(isValidateDate);
 
       
+    }else if(subcommand === "조회"){
+      await interaction.deferReply({ephemeral: true});
+      console.log(moment().format('YYYY-MM-DD HH:mm'));
+
+      var schedules = await scheduleDB.find({
+        start_date : {
+          $gt : moment().format('YYYY-MM-DD HH:mm')
+        }
+      });
+
+      
+
+      if(schedules.length === 0){
+        interaction.editReply({content: `레이드 스케쥴이 없습니다.`, components: [], ephemeral: true}); 
+      }else{
+        const embed = new EmbedBuilder().setTitle(`레이드 스케쥴 조회`);
+
+        for(var schedule of schedules){  
+          var startdate = moment(schedule.start_date, 'YYYY-MM-DD HH:mm', true);
+          embed.addFields(
+            {
+              name: `${schedule.creater_name}님이 생성한 레이드`,
+              value: `${schedule.raid_object}(${schedule.raid_mode}) ${schedule.type}\n날짜: ${startdate.format('YYYY년MM월DD일 HH시mm분(dddd)')}`,            
+            },            
+            // {
+            //   name: "================================================================",
+            //   value: ``,              
+            // },
+            {
+              name: "\u200B",
+              value: '\u200B',
+            }
+          );
+        }
+  
+        interaction.editReply({content: `레이드 스케쥴 조회를 완료 하였습니다.`, embeds: [embed], components: [], ephemeral: true}); 
+      }
+
+      
+    }else if(subcommand === "참가"){
+      await interaction.deferReply({ephemeral: true});
+
+      var schedules = await scheduleDB.find({
+        start_date : {
+          $gt : moment().format('YYYY-MM-DD HH:mm')
+        }
+      });
+
+      if(schedules.length === 0){
+        interaction.editReply({content: `레이드 스케쥴이 없습니다.`, components: [], ephemeral: true}); 
+      }else{
+        const selectorType = new StringSelectMenuBuilder()
+        .setCustomId('raidId')
+        .setPlaceholder('참가 신청할 레이드를 선택해 주세요');
+
+        var schedules = await scheduleDB.find({
+          start_date : {
+            $gt : moment().format('YYYY-MM-DD HH:mm')
+          }
+        });
+
+        for(var schedule of schedules){  
+          var startdate = moment(schedule.start_date, 'YYYY-MM-DD HH:mm', true);
+          selectorType.addOptions(
+            new StringSelectMenuOptionBuilder()
+            .setLabel(`${schedule.raid_object}(${schedule.raid_mode}) ${schedule.type}\n날짜: ${startdate.format('YYYY년MM월DD일 HH시mm분(dddd)')}`)
+            .setDescription(`${schedule.creater_name}님이 생성한 레이드`)
+            .setValue(`${schedule._id}`)
+          );        
+        }
+
+        const row = new ActionRowBuilder().addComponents(selectorType);
+        const response = await interaction.editReply({content: "레이드 스케쥴", components: [row], ephemeral: true}); 
+
+        const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60_000 });
+
+        collector.on('collect', async i => {
+          const selection = i.values[0];
+
+          const newRaidMember = new raidMemberDB({
+            raid_id: selection,
+            member_id: interaction.user.id,
+            member_name: interaction.member.nickname ?? interaction.user.globalName
+          });
+          await newRaidMember.save();
+
+          var raid = await scheduleDB.findOne({
+            _id : selection
+          });
+
+          console.log(raid);
+
+          var ownerUser;
+
+          await i.guild.members.fetch().then(members =>{              
+              ownerUser = members.find(user => user.id === raid.creater);
+              console.log(ownerUser);
+            }
+          )
+          
+          await i.update({content: `${raid.creater_name} 님이 생성한 레이드에 참가 신청 하였습니다.`, components: [], ephemeral: true});
+          await i.followUp({content: `${ownerUser} ${i.user}님이 레이드 참가 신청 하였습니다.`});
+          
+        });
+        
+      }			
+    }
+    else if(subcommand === "신청조회"){
+      await interaction.deferReply({ephemeral: true});
+
+      var schedules = await scheduleDB.find({
+        start_date : {
+          $gt : moment().format('YYYY-MM-DD HH:mm')
+        }
+      });
+
+      if(schedules.length === 0){
+        interaction.editReply({content: `레이드 스케쥴이 없습니다.`, components: [], ephemeral: true}); 
+      }else{
+        const selectorType = new StringSelectMenuBuilder()
+        .setCustomId('raidId')
+        .setPlaceholder('신청자를 조회할 레이드를 선택해 주세요');
+
+        var schedules = await scheduleDB.find({
+          start_date : {
+            $gt : moment().format('YYYY-MM-DD HH:mm')
+          }
+        });
+
+        for(var schedule of schedules){  
+          var startdate = moment(schedule.start_date, 'YYYY-MM-DD HH:mm', true);
+          selectorType.addOptions(
+            new StringSelectMenuOptionBuilder()
+            .setLabel(`${schedule.raid_object}(${schedule.raid_mode}) ${schedule.type}\n날짜: ${startdate.format('YYYY년MM월DD일 HH시mm분(dddd)')}`)
+            .setDescription(`${schedule.creater_name}님이 생성한 레이드`)
+            .setValue(`${schedule._id}`)
+          );        
+        }
+
+        const row = new ActionRowBuilder().addComponents(selectorType);
+        const response = await interaction.editReply({content: "레이드 스케쥴", components: [row], ephemeral: true}); 
+
+        const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60_000 });
+
+        collector.on('collect', async i => {
+          const selection = i.values[0];
+
+          // const newRaidMember = new raidMemberDB({
+          //   raid_id: selection,
+          //   member_id: interaction.user.id,
+          //   member_name: interaction.member.nickname ?? interaction.user.globalName
+          // });
+          // await newRaidMember.save();
+
+          var raidmembers = await raidMemberDB.find({
+            raid_id : selection
+          });
+
+          console.log(raidmembers);
+
+          const embed = new EmbedBuilder().setTitle(`레이드 신청자 조회`);
+          
+          var applyer = '';
+          for(var member of raidmembers){  
+            applyer += member.member_name + ' ';
+          }
+
+          embed.addFields(
+            {
+              name: `신청자 리스트`,
+              value: `${applyer}}`,
+            }
+          );          
+          await i.update({content: `${raid.creater_name} 님이 생성한 레이드에 참가 신청 하였습니다.`, embeds: [embed], components: [], ephemeral: true});          
+        });
+        
+      }
+      
+
+			
     }
   },
 };

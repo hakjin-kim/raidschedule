@@ -5,6 +5,10 @@ const raidSchema = new Schema({
     type: String,
     required: true,    
   },
+  creater_name: { //생성자
+    type: String,
+    required: true,    
+  },
   type: { //트라이/클경/반숙/숙련
     type: String,
     required: true,

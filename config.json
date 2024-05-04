@@ -1,0 +1,9 @@
+{
+    "applicationId": "1227250750636163134",
+    "publicKey": "696b11d42d1bd6166e190a9700393031d2ab4fdc0928cbb0e11fc26ed752b8b2",
+    "secret": "3ROQ8sKLkF3EsnjGdRyiqEzYXcFmpp0d",
+    "token": "MTIyNzI1MDc1MDYzNjE2MzEzNA.GwFAPk.I14B7KVZCwm_VRw0T4K9QMkLuf2t62NRXbySTo",
+    "dbuser": "coreadark",
+    "dbpassword": "JKWC40RsQzsZZkAO",
+    "dburi": "mongodb+srv://coreadark:JKWC40RsQzsZZkAO@raidschedule.0qjaw0x.mongodb.net/?retryWrites=true&w=majority&appName=raidschedule"
+}

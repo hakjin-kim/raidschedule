@@ -6,9 +6,7 @@ const path = require('path');
 
 const rest = new REST().setToken(token);
 
-// rest.put(Routes.applicationCommands('1227250750636163134'), { body: [] })
-// 	.then(() => console.log('Successfully deleted all application commands.'))
-	// .catch(console.error);
+
 
 
 
@@ -50,6 +48,10 @@ client.on("messageCreate", (message) => {
       console.log("Connected to mongoDB");
   
       client.login(token);
+
+      rest.put(Routes.applicationCommands('1227250750636163134'), { body: [] })
+        .then(() => console.log('Successfully deleted all application commands.'))
+        .catch(console.error);
     } catch (error) {
       console.log(`Error connecting to Db: ${error}`);
     }
