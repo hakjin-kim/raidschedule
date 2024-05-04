@@ -5,7 +5,7 @@ const raidSchema = new Schema({
     type: String,
     required: true,    
   },
-  creater_name: { //생성자
+  creater_name: {
     type: String,
     required: true,    
   },
