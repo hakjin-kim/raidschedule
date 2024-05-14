@@ -70,9 +70,8 @@ module.exports = {
         console.log(momentDate.isValid());
         console.log(`No interactions were collected. ${date}, ${raid}, ${mode}, ${exp}`);
         console.log(interaction.user);
-
-        if(momentDate.isValid()){
-          await interaction.deferReply();
+        await interaction.deferReply();
+        if(momentDate.isValid()){          
           const newSchedule = new scheduleDB({
             creater: interaction.user.id,
             creater_name: interaction.member.nickname ?? interaction.user.globalName,
